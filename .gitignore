@@ -17,3 +17,6 @@
 # OS files
 Thumbs.db
 Desktop.ini
+
+# Debian build output
+dist/

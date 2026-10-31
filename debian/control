@@ -1,0 +1,9 @@
+Package: liveryapi
+Version: 1.0.0
+Section: web
+Priority: optional
+Architecture: amd64
+Maintainer: Xiaotian <xiaotian7196@gmail.com>
+Description: Livery API service
+ Go API service for listing liveries and regional download URLs.
+ Built-in SQLite database support and systemd service integration.

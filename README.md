@@ -87,3 +87,33 @@ go run ./cmd/importer
 ```
 
 工具支持重复执行，不会重复插入相同的涂装记录。网站只有中国下载地址的记录会将 `download_url_global` 留空。
+
+## Debian 安装包
+
+项目提供 Debian/systemd 打包配置。推荐在 Debian 或 Ubuntu 上执行：
+
+```bash
+chmod +x scripts/build-deb.sh
+./scripts/build-deb.sh
+sudo dpkg -i dist/liveryapi_1.0.0_amd64.deb
+```
+
+安装后服务会自动启动，数据库保存在：
+
+```text
+/var/lib/liveryapi/liveries.db
+```
+
+常用命令：
+
+```bash
+sudo systemctl status liveryapi
+sudo systemctl restart liveryapi
+sudo journalctl -u liveryapi -f
+```
+
+如果只需要生成 Linux 二进制文件，也可以执行：
+
+```bash
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o liveryapi .
+```

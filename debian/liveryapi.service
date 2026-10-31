@@ -1,0 +1,22 @@
+[Unit]
+Description=Livery API service
+After=network.target
+
+[Service]
+Type=simple
+User=liveryapi
+Group=liveryapi
+WorkingDirectory=/var/lib/liveryapi
+Environment=PORT=8080
+Environment=DATABASE_URL=file:/var/lib/liveryapi/liveries.db
+ExecStart=/usr/bin/liveryapi
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/liveryapi
+
+[Install]
+WantedBy=multi-user.target
