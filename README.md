@@ -16,6 +16,8 @@ go run .
 - `PORT`：监听端口，默认 `8080`
 - `DATABASE_URL`：SQLite 连接地址，默认 `file:liveries.db`
 
+API GET 请求限制：同一个客户端 IP 在 60 秒内最多请求 30 次 `/api/` 接口。超过限制时返回 HTTP `429 Too Many Requests`，并通过 `Retry-After` 返回建议等待秒数。服务部署在 Cloudflare 后会优先使用 `CF-Connecting-IP` 识别真实访客 IP。`/health` 健康检查不受此限制。
+
 ## API
 
 ### 获取涂装列表

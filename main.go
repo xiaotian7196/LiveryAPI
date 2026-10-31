@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -38,6 +40,16 @@ type listResponse struct {
 
 type app struct{ db *sql.DB }
 
+const (
+	maxRequestsPerIP = 30
+	rateLimitWindow  = 60 * time.Second
+)
+
+type rateLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+}
+
 func main() {
 	db, err := sql.Open("sqlite", getenv("DATABASE_URL", "file:liveries.db"))
 	if err != nil {
@@ -57,11 +69,73 @@ func main() {
 
 func routes(db *sql.DB) http.Handler {
 	a := &app{db: db}
+	limiter := &rateLimiter{requests: make(map[string][]time.Time)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", a.health)
 	mux.HandleFunc("GET /api/v1/liveries", a.listLiveries)
 	mux.HandleFunc("GET /api/v1/liveries/", a.getLivery)
-	return cors(logging(mux))
+	return cors(logging(limiter.middleware(mux)))
+}
+
+func (l *rateLimiter) middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ip := clientIP(r)
+		now := time.Now()
+		cutoff := now.Add(-rateLimitWindow)
+
+		l.mu.Lock()
+		timestamps := l.requests[ip]
+		expired := 0
+		for expired < len(timestamps) && !timestamps[expired].After(cutoff) {
+			expired++
+		}
+		if expired > 0 {
+			timestamps = timestamps[expired:]
+		}
+
+		if len(timestamps) >= maxRequestsPerIP {
+			retryAfter := int(time.Until(timestamps[0].Add(rateLimitWindow)).Seconds())
+			if retryAfter < 1 {
+				retryAfter = 1
+			}
+			l.requests[ip] = timestamps
+			l.mu.Unlock()
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+			writeError(w, http.StatusTooManyRequests, "rate limit exceeded: maximum 30 GET requests per IP in 60 seconds")
+			return
+		}
+
+		l.requests[ip] = append(timestamps, now)
+		l.mu.Unlock()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func clientIP(r *http.Request) string {
+	if ip := strings.TrimSpace(r.Header.Get("CF-Connecting-IP")); ip != "" {
+		return ip
+	}
+	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
+		return ip
+	}
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+		if comma := strings.IndexByte(forwarded, ','); comma >= 0 {
+			forwarded = forwarded[:comma]
+		}
+		if forwarded = strings.TrimSpace(forwarded); forwarded != "" {
+			return forwarded
+		}
+	}
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 func migrate(db *sql.DB) error {
