@@ -77,3 +77,13 @@ const data = await response.json();
 console.log(data.items[0].download_url_cn);
 console.log(data.items[0].download_url_global);
 ```
+
+## 从网站导入涂装
+
+项目包含网站导入工具，会将 `https://blog.koten.top/` 中整理出的涂装写入本地 SQLite 数据库：
+
+```bash
+go run ./cmd/importer
+```
+
+工具支持重复执行，不会重复插入相同的涂装记录。网站只有中国下载地址的记录会将 `download_url_global` 留空。
