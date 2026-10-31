@@ -51,7 +51,7 @@ func main() {
 
 	port := getenv("PORT", "8080")
 	server := &http.Server{Addr: ":" + port, Handler: routes(db), ReadHeaderTimeout: 5 * time.Second}
-	log.Printf("livery API listening on http://localhost:%s", port)
+	log.Printf("livery API listening on port %s; public URL: https://api.xn--3ckue.jp/", port)
 	log.Fatal(server.ListenAndServe())
 }
 

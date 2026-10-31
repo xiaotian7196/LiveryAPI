@@ -9,7 +9,7 @@ go mod tidy
 go run .
 ```
 
-默认监听 `http://localhost:8080`，数据库文件为当前目录下的 `liveries.db`。
+服务对外访问地址为 `https://api.xn--3ckue.jp/`。Go 程序默认监听本机 `8080` 端口，建议通过 Nginx/Caddy 反向代理并配置 HTTPS。数据库文件默认为当前目录下的 `liveries.db`。
 
 可通过环境变量配置：
 
@@ -72,7 +72,7 @@ VALUES ('示例涂装', '涂装说明', 'msfs', 'A320',
 ## 前端请求示例
 
 ```js
-const response = await fetch('http://localhost:8080/api/v1/liveries?page=1&page_size=20');
+const response = await fetch('https://api.xn--3ckue.jp/api/v1/liveries?page=1&page_size=20');
 const data = await response.json();
 console.log(data.items[0].download_url_cn);
 console.log(data.items[0].download_url_global);
@@ -110,6 +110,29 @@ sudo dpkg -i dist/liveryapi_1.0.0_amd64.deb
 sudo systemctl status liveryapi
 sudo systemctl restart liveryapi
 sudo journalctl -u liveryapi -f
+```
+
+对外接口地址：
+
+```text
+https://api.xn--3ckue.jp/
+```
+
+如果使用 Nginx，可以将域名转发到本机的 Go 服务：
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name api.xn--3ckue.jp;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 如果只需要生成 Linux 二进制文件，也可以执行：
